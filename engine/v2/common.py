@@ -88,7 +88,7 @@ class Timeline:
 
     def wt(self, seg, word):
         for w in self.W[seg]:
-            if w["w"].lower().strip(",.?!:") == word:
+            if w["w"].lower().strip(",.?!:") == word.lower().strip(",.?!:"):
                 return w["t0"]
         return self.T[seg][0]
 

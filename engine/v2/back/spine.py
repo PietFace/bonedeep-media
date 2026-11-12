@@ -89,7 +89,7 @@ def sprites():
     return SPR
 
 
-def chain(flex=0.0):
+def chain(flex=0.0, ds=1.0):
     """returns list of frames (cx, cy, ang) for sacrum-top, L5..L1 and disc centres, with L3 at origin."""
     ang = LORD[0]
     pos = (0.0, 0.0)
@@ -99,10 +99,11 @@ def chain(flex=0.0):
     for i in range(5):
         a = LORD[i] + flex * 7
         am = (a_prev + a) / 2 * d2r
-        dc = (cur[0] + math.sin(am) * DH, cur[1] - math.cos(am) * DH)
+        dh = DH * ds
+        dc = (cur[0] + math.sin(am) * dh, cur[1] - math.cos(am) * dh)
         discs.append((dc[0], dc[1], (a_prev + a) / 2))
         ar = a * d2r
-        vc = (dc[0] + math.sin(ar) * (DH + BH), dc[1] - math.cos(ar) * (DH + BH))
+        vc = (dc[0] + math.sin(ar) * (dh + BH), dc[1] - math.cos(ar) * (dh + BH))
         frames.append((vc[0], vc[1], a))
         cur = (vc[0] + math.sin(ar) * BH, vc[1] - math.cos(ar) * BH); a_prev = a
     ox, oy = frames[2][0], frames[2][1]
@@ -117,7 +118,8 @@ def to_world(f, pt):
 
 def spine(ctx, t, st, anchors):
     sp = sprites()
-    sac, fr, dc = chain(st.get("flex", 0))
+    ds = st.get("ds", 1.0)
+    sac, fr, dc = chain(st.get("flex", 0), ds)
     spasm = st.get("spasm", 0); green = st.get("green", 0)
     # erector spinae behind (posterior), follows spinous tips
     pts = [to_world(sac, (-280, 120))] + [to_world(f, (-370, 0)) for f in fr] + [to_world(fr[-1], (-380, -260))]
@@ -144,7 +146,7 @@ def spine(ctx, t, st, anchors):
     ctx.save(); ctx.translate(sac[0], sac[1]); ctx.rotate(sac[2] * d2r); sp["sac"].paint(ctx); ctx.restore()
     hl = st.get("hl", -1)
     for i, d in enumerate(dc):
-        ctx.save(); ctx.translate(d[0], d[1]); ctx.rotate(d[2] * d2r); sp["disc"].paint(ctx)
+        ctx.save(); ctx.translate(d[0], d[1]); ctx.rotate(d[2] * d2r); ctx.scale(1, ds); sp["disc"].paint(ctx)
         if green > 0 or st.get("disc_glow", 0) > 0:
             disc_shape(ctx); A.rgba(ctx, C.GREEN if green > 0 else C.CYAN, 0.8 * max(green, st.get("disc_glow", 0)))
             ctx.set_line_width(5); ctx.stroke()
