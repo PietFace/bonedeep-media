@@ -27,11 +27,11 @@ def phase(t):
 
 def leg_pose(hip, ph, amp):
     th = (26 * math.sin(ph)) * amp * d2r                       # thigh angle (+ = forward)
-    kn = (8 + (60 * max(0, math.sin(ph - 1.9)) + 18)) * amp * d2r   # knee flexion
+    kn = (14 + 85 * max(0.0, math.cos(ph + 0.35)) ** 1.5) * amp * d2r   # knee bends during forward swing (thigh moving forward)
     K_ = (hip[0] + 300 * math.sin(th), hip[1] + 300 * math.cos(th))
     sa = th - kn
     A_ = (K_[0] + 290 * math.sin(sa), K_[1] + 290 * math.cos(sa))
-    fa = sa + (-10 * math.sin(ph) * amp) * d2r                   # foot angle relative to shin
+    fa = sa + (-12 * math.cos(ph) * amp) * d2r                   # foot angle relative to shin
     return K_, A_, fa
 
 
