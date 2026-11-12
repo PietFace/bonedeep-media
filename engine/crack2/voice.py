@@ -4,13 +4,13 @@ from kokoro_onnx import Kokoro
 
 SEGS = [  # (id, text, pause_after_s, speed)
     ("squat", "You squat down,", 0.10, 1.0),
-    ("goes", "and your knee goes...", 0.45, 0.95),
-    ("crack", "Crack!", 0.55, 1.0),
+    ("goes", "and your knee goes...", 0.30, 0.95),
+    ("crack", None, 0.0, 1.0),
     ("bad", "Is that bad? Let's look inside.", 0.35, 1.0),
     ("capsule", "Your knee is wrapped in a capsule, filled with fluid.", 0.15, 1.0),
     ("gas", "That fluid holds dissolved gas.", 0.15, 1.0),
     ("bend", "When you bend, the pressure drops, and a bubble forms...", 0.15, 1.0),
-    ("pop", "Pop.", 0.45, 1.0),
+    ("pop", None, 0.0, 1.0),
     ("tendon", "Sometimes, it's a tendon, flicking over a bump of bone.", 0.35, 1.0),
     ("harmless", "Painless cracking is very common, and usually harmless.", 0.40, 1.0),
     ("pain", "But if it comes with pain,", 0.05, 1.0),
@@ -26,7 +26,13 @@ sr = 24000
 parts = [np.zeros(int(LEAD * sr), np.float32)]
 t = LEAD
 timeline = []
+SFX_GAP = {"crack": 1.05, "pop": 0.85}   # silence where the real sound effect plays
 for sid, text, pause, speed in SEGS:
+    if text is None:
+        g = SFX_GAP[sid]
+        timeline.append({"id": sid, "text": "", "t0": round(t, 3), "t1": round(t + 0.25, 3), "words": []})
+        parts.append(np.zeros(int(g * sr), np.float32)); t += g
+        continue
     a, sr = k.create(text, voice="bm_george", speed=speed, lang="en-gb")
     a = a.astype(np.float32)
     # trim leading/trailing silence

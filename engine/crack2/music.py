@@ -114,19 +114,47 @@ a, b = int((TC - 0.45) * SR), int(TC * SR)
 mus[a:b] *= np.linspace(1, 0.0, b - a)
 
 # --- SFX ---
+def room(sig, length=0.18, mixv=0.25):
+    m = int(length * SR); tp = np.arange(m) / SR
+    ir = rng.standard_normal(m) * np.exp(-tp * 28); ir[0] = 1.0 / mixv
+    out = np.convolve(sig, ir)[:len(sig) + m] * mixv
+    return out
+
+
 def crack_sfx(amp=1.0):
-    m = int(0.9 * SR); tp = np.arange(m) / SR
-    s = rng.standard_normal(m) * np.exp(-tp * 45)                              # snap
-    s += 0.8 * rng.standard_normal(m) * (np.sin(tp * 900) > 0.7) * np.exp(-tp * 20)   # crackle
-    s += 1.0 * np.sin(2 * np.pi * np.cumsum(60 * np.exp(-tp * 4) + 34) / SR) * np.exp(-tp * 5)   # body thump
-    return amp * 0.55 * s
+    """Realistic joint crack: a cluster of sharp micro-clicks, a short bony resonance and a gritty tail."""
+    m = int(0.35 * SR); s = np.zeros(m); tp = np.arange(m) / SR
+    t0 = 0.0
+    for j in range(5):
+        i = int(t0 * SR); n = int(0.02 * SR); tt = np.arange(n) / SR
+        f = rng.uniform(1800, 4200)
+        click = np.sin(2 * np.pi * f * tt) * np.exp(-tt * rng.uniform(250, 420))
+        burst = rng.standard_normal(n) * np.exp(-tt * 900)
+        a = (1.0 if j == 0 else rng.uniform(0.35, 0.8))
+        s[i:i + n] += a * (0.8 * click + 0.6 * burst)
+        t0 += rng.uniform(0.004, 0.011)
+    s += 0.55 * np.sin(2 * np.pi * 210 * tp) * np.exp(-tp * 45)          # bony knock
+    s += 0.25 * np.sin(2 * np.pi * 420 * tp) * np.exp(-tp * 70)
+    for _ in range(18):                                                  # gritty tail
+        i = int(rng.uniform(0.03, 0.14) * SR); n = int(0.004 * SR)
+        s[i:i + n] += rng.uniform(0.08, 0.25) * rng.standard_normal(n) * np.exp(-np.arange(n) / SR * 1500)
+    s = room(s)
+    s = s / np.abs(s).max()
+    # a soft cinematic low hit underneath, kept small so the crack stays the star
+    n = int(0.8 * SR); tt = np.arange(n) / SR
+    low = 0.35 * np.sin(2 * np.pi * np.cumsum(55 * np.exp(-tt * 5) + 32) / SR) * np.exp(-tt * 5)
+    out = np.zeros(max(len(s), n)); out[:len(s)] += s * 0.9; out[:n] += low
+    return amp * out
 
 
-def pop_sfx(amp=1.0, f0=900):
-    m = int(0.18 * SR); tp = np.arange(m) / SR
-    s = np.sin(2 * np.pi * np.cumsum(f0 * np.exp(-tp * 25) + 180) / SR) * np.exp(-tp * 30)
-    s[:60] += np.linspace(1, 0, 60)
-    return amp * 0.45 * s
+def pop_sfx(amp=1.0, f0=420):
+    """Bubble 'plop': a fast upward pitch glide with a damped liquid resonance."""
+    n = int(0.12 * SR); tt = np.arange(n) / SR
+    f = f0 * (1 + 2.6 * (1 - np.exp(-tt * 55)))
+    s = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 38) * np.minimum(1, tt * 900)
+    s[:40] += np.linspace(0.6, 0, 40) * np.sign(rng.standard_normal(40))
+    s = room(s, 0.12, 0.2)
+    return amp * 0.8 * s / np.abs(s).max()
 
 
 def whoosh(dur, up=True):
@@ -141,11 +169,9 @@ def thud(amp=1.0):
 
 
 add(sfx, TC, crack_sfx(1.0))
-for j in range(6):
-    add(sfx, TC + 0.02 + j * 0.03, pop_sfx(0.35, 700 + 120 * j))
 add(sfx, T["bad"][0] + 0.15, whoosh(1.8))
-for j in range(5):
-    add(sfx, TPOP + j * 0.035, pop_sfx(0.6 if j == 0 else 0.3, 1000 - 90 * j))
+add(sfx, TPOP, pop_sfx(1.0, 380))
+add(sfx, TPOP + 0.11, pop_sfx(0.35, 520))
 m = int(0.06 * SR); tp = np.arange(m) / SR
 add(sfx, TFLICK, 0.5 * np.sin(2 * np.pi * 2400 * tp) * np.exp(-tp * 120) + 0.3 * rng.standard_normal(m) * np.exp(-tp * 90))
 add(sfx, TFLICK, thud(0.3))
@@ -153,7 +179,7 @@ add(sfx, TFLICK, thud(0.3))
 hb = TPAIN + 0.2
 while hb < TCHECK:
     add(sfx, hb, thud(0.45)); add(sfx, hb + 0.28, thud(0.3)); hb += 0.85
-add(sfx, TGIVE, crack_sfx(0.5) * 0.6 + 0); add(sfx, TGIVE, thud(0.9))
+add(sfx, TGIVE, thud(0.9))
 add(sfx, TCHECK, thud(0.8))
 add(sfx, T["move"][0] - 0.1, whoosh(1.8, up=False))
 
@@ -171,7 +197,7 @@ envv = np.convolve(np.abs(voice), np.ones(int(0.12 * SR)) / int(0.12 * SR), mode
 duck = 1 - 0.62 * np.clip(envv / (envv.max() * 0.25), 0, 1)
 duck = np.convolve(duck, np.ones(int(0.08 * SR)) / int(0.08 * SR), mode="same")
 musn = mus / (np.abs(mus).max() + 1e-9)
-mix = 0.30 * musn * duck + 0.55 * sfx + 1.0 * voice / (np.abs(voice).max() + 1e-9) * 0.85
+mix = 0.30 * musn * duck + 0.75 * sfx + 1.0 * voice / (np.abs(voice).max() + 1e-9) * 0.85
 mix = np.tanh(mix * 1.2) / np.tanh(1.2)
 sf.write("/home/claude/crack2/mix.wav", mix.astype(np.float32), SR)
 print("ok", TOTAL)
