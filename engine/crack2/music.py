@@ -168,10 +168,11 @@ def thud(amp=1.0):
     return amp * 0.6 * np.sin(2 * np.pi * np.cumsum(80 * np.exp(-tp * 8) + 38) / SR) * np.exp(-tp * 6)
 
 
-add(sfx, TC, crack_sfx(1.0))
+rec_crack, _ = sf.read("/home/claude/crack2/sfx_crack_rec.wav")
+rec_pop, _ = sf.read("/home/claude/crack2/sfx_pop_rec.wav")
+add(sfx, TC - 0.06, 1.0 * rec_crack)          # Frank's own recording; transient lands exactly on TC
 add(sfx, T["bad"][0] + 0.15, whoosh(1.8))
-add(sfx, TPOP, pop_sfx(1.0, 380))
-add(sfx, TPOP + 0.11, pop_sfx(0.35, 520))
+add(sfx, TPOP - 0.06, 0.9 * rec_pop)
 m = int(0.06 * SR); tp = np.arange(m) / SR
 add(sfx, TFLICK, 0.5 * np.sin(2 * np.pi * 2400 * tp) * np.exp(-tp * 120) + 0.3 * rng.standard_normal(m) * np.exp(-tp * 90))
 add(sfx, TFLICK, thud(0.3))
